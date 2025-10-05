@@ -1,3 +1,0 @@
-C:/Users/karina/lab1.sem1/cmake-build-debug/CMakeFiles/lab1_sem1.dir
-C:/Users/karina/lab1.sem1/cmake-build-debug/CMakeFiles/edit_cache.dir
-C:/Users/karina/lab1.sem1/cmake-build-debug/CMakeFiles/rebuild_cache.dir

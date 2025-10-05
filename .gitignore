@@ -1,0 +1,12 @@
+# Ignore CLion project files
+.idea/
+cmake-build-debug/
+cmake-build-release/
+CMakeFiles/
+CMakeCache.txt
+*.obj
+*.o
+*.exe
+*.log
+*.user
+*.DS_Store
