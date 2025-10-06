@@ -4,4 +4,5 @@ project(lab1_sem1)
 set(CMAKE_CXX_STANDARD 20)
 
 add_executable(lab1_sem1
-    main.cpp)
+    main.cpp
+        Graph.h)
