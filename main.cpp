@@ -3,72 +3,82 @@
 #include "Network.h"
 #include "NetworkSimulator.h"
 #include <clocale>
-#ifdef _WIN32
-  #include <windows.h>
-#endif
 #include <iostream>
+
+/*
+DEMO
+- показуємо:
+  1) граф на int + BFS/DFS (демо шаблонів і алгоритмів)
+  2) дейкстру на зваженому графі (WeightedEdge)
+  3) мережу: побудова, пошук маршруту (DijkstraRouting), передача пакета
+*/
+
 
 int main() {
 
-#ifdef _WIN32
-    // перевести консоль Windows на UTF-8
-    SetConsoleOutputCP(CP_UTF8);
-    SetConsoleCP(CP_UTF8);
-#endif
+    std::cout << "OOP Lab 1 - Networks + Graphs\n\n";
 
-    std::cout << "OOP Lab 1 — Networks + Graphs (C++20)\n\n";
+    // 1) базовий граф + BFS/DFS
+    {
+        Graph<int, int> g(false); // неорієнтований
+        g.addNode(1); g.addNode(2); g.addNode(3);
+        g.addEdge(1, 2, 1);
+        g.addEdge(2, 3, 1);
+        std::cout << "[Simple Graph]\n";
+        g.printGraph();
 
-    // демонстрація Graph + BFS/DFS на простих типах
-    Graph<int, int> g;
-    g.addNode(1); g.addNode(2); g.addNode(3);
-    g.addEdge(1, 2, 1);
-    g.addEdge(2, 3, 1);
-    g.addEdge(1, 3, 5);
+        BFS<int,int> bfs;
+        DFS<int,int> dfs;
+        bfs.run(g, 1); // демонструє BFS: 1 2 3
+        dfs.run(g, 1); // демонструє DFS
+        std::cout << "\n";
+    }
 
-    std::cout << "Simple graph:\n";
-    g.printGraph();
+    // 2) дейкстра на зваженому графі
+    {
+        Graph<std::string, WeightedEdge> wg(true);
+        wg.addNode("A"); wg.addNode("B"); wg.addNode("C");
+        wg.addEdge("A","B", WeightedEdge{5.0});
+        wg.addEdge("B","C", WeightedEdge{2.0});
+        wg.addEdge("A","C", WeightedEdge{9.0});
 
-    BFS<int, int> bfs;
-    DFS<int, int> dfs;
-    bfs.run(g, 1);
-    dfs.run(g, 1);
+        Dijkstra<std::string> dj;
+        dj.run(wg, "A");
+        auto path = dj.getPathTo("A","C");
+        std::cout << "[Dijkstra]\nA->C: ";
+        for (auto& x : path) std::cout << x << (x==path.back() ? '\n' : ' ');
+        std::cout << "dist(C) = " << dj.dist["C"] << " (expect 7.0)\n\n";
+    }
 
-    // Демонстрація Dijkstra на зваженому графі (int->double)
-    Graph<std::string, double> wg;
-    wg.addNode("A"); wg.addNode("B"); wg.addNode("C"); wg.addNode("D");
-    wg.addEdge("A","B",4.0);
-    wg.addEdge("A","C",2.0);
-    wg.addEdge("C","D",3.0);
-    wg.addEdge("B","D",10.0);
+    // 3) мережа + маршрутизація + передача пакета
+    {
+        NetworkSimulator sim;
+        sim.buildDemo(); // R1 - S1 - H1, і альтернативний R1 - H2
+        sim.printDevices();
 
-    Dijkstra<std::string> dj1;
-    dj1.run(wg, "A"); // тут вага = саме значення ребра
-    std::vector<std::string> p1 = dj1.buildPath("D");
-    std::cout << "\nDijkstra A->D (weighted graph): ";
-    if (p1.empty()) std::cout << "no path\n";
-    else { for (const auto& v : p1) std::cout << v << " "; std::cout << "(dist=" << dj1.distTo("D") << ")\n"; }
+        DijkstraRouting routerAlgo;
+        Packet pkt("H1","H2", /*ttl*/8, /*size*/1500); // 1500 bytes
 
-    // мережа + маршрутизація
-    NetworkSimulator sim;
-    sim.buildDemo();
-    std::cout << "\n";
-    sim.print();
+        auto route = sim.findRoute(routerAlgo, "H1", "H2", pkt.size());
+        std::cout << "\n[Routing] H1 -> H2 path: ";
+        if (route.empty()) std::cout << "(no path)\n";
+        else {
+            for (auto& n : route) std::cout << n << (n==route.back()?'\n':' ');
+            double seconds = sim.sendPacket(route, pkt);
+            std::cout << "Packet TTL left: " << pkt.ttl() << "\n";
+            std::cout << "Packet hops   : ";
+            for (auto& h : pkt.hops()) std::cout << h << (h==pkt.hops().back()?'\n':' ');
+            std::cout << "Total time (s): " << seconds << "\n";
+        }
 
-    // 1) найменша латентність
-    std::vector<std::string> r1 = sim.route("R1", "H2", 1024, true);
-    std::cout << "\nRoute by latency R1->H2: ";
-    if (r1.empty()) std::cout << "no route\n";
-    else { for (const auto& v : r1) std::cout << v << " "; std::cout << "\n"; }
+        // збереження / завантаження (демо):
+        sim.saveTopology("topology.txt");
+        NetworkSimulator sim2;
+        sim2.loadTopology("topology.txt");
+        std::cout << "\n[Loaded topology] ";
+        sim2.printDevices();
+    }
 
-    // 2) найшвидша передача великого пакета
-    std::vector<std::string> r2 = sim.route("R1", "H2", 2'000'000, false); // ~2MB
-    std::cout << "Route by xfer-time (2MB) R1->H2: ";
-    if (r2.empty()) std::cout << "no route\n";
-    else { for (const auto& v : r2) std::cout << v << " "; std::cout << "\n"; }
-
-    // 3) відправка пакета
-    Packet pkt("R1","H2", 10, 4096);
-    sim.send(pkt, true);
-
+    std::cout << "\nDONE.\n";
     return 0;
 }
