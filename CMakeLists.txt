@@ -5,4 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 
 add_executable(lab1_sem1
     main.cpp
-        Graph.h)
+        Graph.h
+        GraphAlgorithms.h
+        Network.h
+        NetworkSimulator.h)
