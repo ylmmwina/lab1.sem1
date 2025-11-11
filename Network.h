@@ -33,74 +33,108 @@
 #include <string>
 #include <vector>
 
-// базовий пристрій
+// -----------------------------
+// Device: базовий абстрактний клас
+// -----------------------------
 class Device {
 protected:
-    int         id_;
+    int id_;
     std::string name_;
 public:
     Device(int id, std::string name) : id_(id), name_(std::move(name)) {}
     virtual ~Device() = default;
 
-    int id() const { return id_; } // геттер (тривіальний)
+    int id() const { return id_; }
     const std::string& name() const { return name_; }
 
-    // (М15) абстрактний поліморфний метод — тип пристрою
+    // чисто віртуальний — реалізують нащадки
     virtual std::string kind() const = 0;
 };
 
-// похідні пристрої
-class Router : public Device {
-    // поле "натяк" для маршрутизації (не обов'язкове, просто приклад)
+// -----------------------------
+// NetworkDevice: проміжний (2-й рівень)
+// Device -> NetworkDevice -> Router/Switch (глибина 3 для Router/Switch)
+// -----------------------------
+class NetworkDevice : public Device {
+protected:
+    // приклад загального поля для мережного обладнання
+    std::string mgmtInterface_;
+public:
+    NetworkDevice(int id, std::string name, std::string mgmt = "")
+        : Device(id, std::move(name)), mgmtInterface_(std::move(mgmt)) {}
+
+    virtual ~NetworkDevice() = default;
+
+    const std::string& mgmtInterface() const { return mgmtInterface_; }
+    void setMgmtInterface(std::string s) { mgmtInterface_ = std::move(s); }
+
+    // kind() залишається чисто віртуальним — конкретні підкласи його перевизначать
+};
+
+// -----------------------------
+// Router: нащадок NetworkDevice (глибина 3)
+// -----------------------------
+class Router : public NetworkDevice {
     std::string routingHint_;
 public:
-    Router(int id, std::string name) : Device(id, std::move(name)) {}
-    std::string kind() const override { return "Router"; } // (М16)
+    Router(int id, std::string name, std::string mgmt = "")
+        : NetworkDevice(id, std::move(name), std::move(mgmt)) {}
+
+    std::string kind() const override { return "Router"; }
 };
 
-class Switch : public Device {
+// -----------------------------
+// Switch: нащадок NetworkDevice (глибина 3)
+// -----------------------------
+class Switch : public NetworkDevice {
 public:
-    Switch(int id, std::string name) : Device(id, std::move(name)) {}
-    std::string kind() const override { return "Switch"; } // (М17)
+    Switch(int id, std::string name, std::string mgmt = "")
+        : NetworkDevice(id, std::move(name), std::move(mgmt)) {}
+
+    std::string kind() const override { return "Switch"; }
 };
 
+// -----------------------------
+// Host: залишається прямим нащадком Device (варіант A)
+// якщо потрібно — можна легко перевести Host -> NetworkDevice (варіант B)
+// -----------------------------
 class Host : public Device {
     std::string address_;
 public:
     Host(int id, std::string name, std::string addr)
         : Device(id, std::move(name)), address_(std::move(addr)) {}
+
     const std::string& address() const { return address_; }
-    std::string kind() const override { return "Host"; } // (М18)
+    std::string kind() const override { return "Host"; }
 };
 
-// зв'язок/канал
+// -----------------------------
+// Link: властивості каналу (latency, bandwidth, reliability)
+// метод costForBytes повертає час (сек) передачі payload
+// -----------------------------
 struct Link {
     double latencyMs{1.0};
     double bandwidthMbps{100.0};
     double reliability{0.999};
 
-    // (М19) оцінка часу передавання "bytes" з урахуванням latency та bandwidth
-    // повертає секунди: latency (мс -> с) + (байти / (Мб/с * 1e6))
     double costForBytes(std::size_t bytes) const {
         double secondsLatency = latencyMs / 1000.0;
         double secondsPayload = (bandwidthMbps > 0.0)
-                                ? (static_cast<double>(bytes) / (bandwidthMbps * 1'000'000.0))
-                                : 1e9; // дуже велика вартість у разі 0 Mbps
+            ? (static_cast<double>(bytes) / (bandwidthMbps * 1'000'000.0))
+            : 1e9; // якщо bandwidth == 0 — практично нескінченний час
         return secondsLatency + secondsPayload;
     }
 };
 
 // пакет
 class Packet {
-    std::string source_;
-    std::string destination_;
-    int         ttl_{8};
+    std::string source_, destination_;
+    int ttl_{8};
     std::size_t sizeBytes_{512};
     std::vector<std::string> hops_;
 public:
     Packet(std::string src, std::string dst, int ttl = 8, std::size_t size = 512)
-        : source_(std::move(src)), destination_(std::move(dst)),
-          ttl_(ttl), sizeBytes_(size) {}
+        : source_(std::move(src)), destination_(std::move(dst)), ttl_(ttl), sizeBytes_(size) {}
 
     const std::string& src() const { return source_; }
     const std::string& dst() const { return destination_; }
@@ -108,12 +142,8 @@ public:
     std::size_t size() const { return sizeBytes_; }
     const std::vector<std::string>& hops() const { return hops_; }
 
-    void decTTL() { --ttl_; } // тривіальний
-
-    // (М20) запис чергового вузла в маршрут пакета
-    void addHop(const std::string& nodeName) {
-        hops_.push_back(nodeName);
-    }
+    void decTTL() { --ttl_; }
+    void addHop(const std::string& nodeName) { hops_.push_back(nodeName); }
 };
 
 #endif //NETWORK_H

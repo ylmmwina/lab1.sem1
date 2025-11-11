@@ -109,14 +109,14 @@ public:
 
     // (М25) демо-топологія:  R1 ─ S1 ─ H1,  R1 ─ H2 (довший шлях)
     void buildDemo() {
-        addDevice(new Router(1, "R1"));
-        addDevice(new Switch(2, "S1"));
+        addDevice(new Router(1, "R1", "eth0"));
+        addDevice(new Switch(2, "S1", "mgmt0"));
         addDevice(new Host(3, "H1", "10.0.0.1"));
         addDevice(new Host(4, "H2", "10.0.0.2"));
 
         connect("R1", "S1", Link{0.5, 100.0, 0.999});
         connect("S1", "H1", Link{1.0, 100.0, 0.999});
-        connect("R1", "H2", Link{3.0, 20.0, 0.98});  // гірший канал
+        connect("R1", "H2", Link{3.0, 20.0, 0.98});
     }
 
     // (М26) знайти маршрут між src та dst (імена вузлів), використовуючи алгоритм
